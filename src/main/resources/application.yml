@@ -1,0 +1,32 @@
+# Server config
+server:
+  port: 8083
+
+# Spring Config
+spring:
+  data:
+    mongodb:
+      database: ProjectOne
+      host: localhost
+  application:
+    name: active-operations-service
+
+eureka:
+  instance:
+    hostname: localhost
+    serviceUrl:
+      defaultZone: http://${eureka.instance.hostname}:8761/eureka/
+    prefer-ip-address: true
+
+# Constants
+constants:
+  status:
+    blocked: Blocked
+    active: Active
+  operation:
+    payment_type: Payment
+    consumption_type: Consumption
+  eureka:
+    service_url:
+      customer_info_service: localhost:8081/api/v1
+      # customer_info_service: customer-info-service
