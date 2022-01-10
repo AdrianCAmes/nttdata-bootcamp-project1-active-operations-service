@@ -21,4 +21,16 @@ public class Constants {
 
     @Value("${constants.status.active}")
     private String STATUS_ACTIVE;
+
+    @Value("${constants.operation.consumption_type}")
+    private String OPERATION_CONSUMPTION_TYPE;
+
+    @Value("${constants.operation.payment_type}")
+    private String OPERATION_PAYMENT_TYPE;
+
+    @Value("${constants.billing_order.paid_status}")
+    private String BILLING_ORDER_PAID;
+
+    @Value("${constants.billing_order.unpaid_status}")
+    private String BILLING_ORDER_UNPAID;
 }

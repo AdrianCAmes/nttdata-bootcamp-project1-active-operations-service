@@ -1,20 +1,28 @@
 package com.nttdata.bootcamp.activeoperationsservice.utils.impl;
 
+import com.nttdata.bootcamp.activeoperationsservice.config.Constants;
 import com.nttdata.bootcamp.activeoperationsservice.model.Credit;
 import com.nttdata.bootcamp.activeoperationsservice.model.Customer;
+import com.nttdata.bootcamp.activeoperationsservice.model.Operation;
+import com.nttdata.bootcamp.activeoperationsservice.model.dto.request.CreditConsumeCreditRequestDTO;
 import com.nttdata.bootcamp.activeoperationsservice.model.dto.request.CreditCreateRequestDTO;
 import com.nttdata.bootcamp.activeoperationsservice.model.dto.request.CreditUpdateRequestDTO;
+import com.nttdata.bootcamp.activeoperationsservice.model.dto.response.CreditFindBalancesResponseDTO;
 import com.nttdata.bootcamp.activeoperationsservice.utils.CreditUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class CreditUtilsImpl implements CreditUtils {
+    private final Constants constants;
+
     @Override
     public Credit creditCreateRequestDTOToCredit(CreditCreateRequestDTO creditDTO) {
         return Credit.builder()
@@ -37,6 +45,15 @@ public class CreditUtilsImpl implements CreditUtils {
                 .dueDate(creditDTO.getDueDate())
                 .operations(creditDTO.getOperations())
                 .billingDetails(creditDTO.getBillingDetails())
+                .build();
+    }
+
+    @Override
+    public Credit creditFindBalancesResponseDTOToCredit(CreditFindBalancesResponseDTO creditDTO) {
+        return Credit.builder()
+                .id(creditDTO.getId())
+                .fullGrantedAmount(creditDTO.getFullGrantedAmount())
+                .availableAmount(creditDTO.getAvailableAmount())
                 .build();
     }
 
@@ -66,6 +83,15 @@ public class CreditUtilsImpl implements CreditUtils {
     }
 
     @Override
+    public CreditFindBalancesResponseDTO creditToCreditFindBalancesResponseDTO(Credit credit) {
+        return CreditFindBalancesResponseDTO.builder()
+                .id(credit.getId())
+                .fullGrantedAmount(credit.getFullGrantedAmount())
+                .availableAmount(credit.getAvailableAmount())
+                .build();
+    }
+
+    @Override
     public Credit fillCreditWithCreditUpdateRequestDTO(Credit credit, CreditUpdateRequestDTO creditDTO) {
         credit.setId(creditDTO.getId());
         credit.setStatus(creditDTO.getStatus());
@@ -74,6 +100,24 @@ public class CreditUtilsImpl implements CreditUtils {
         credit.setDueDate(creditDTO.getDueDate());
         credit.setOperations(creditDTO.getOperations());
         credit.setBillingDetails(creditDTO.getBillingDetails());
+        return credit;
+    }
+
+    @Override
+    public Credit fillCreditWithCreditConsumeCreditRequestDTO(Credit credit, CreditConsumeCreditRequestDTO creditDTO) {
+        Operation operation = Operation.builder()
+                .amount(creditDTO.getAmount())
+                .time(new Date())
+                .type(constants.getOPERATION_CONSUMPTION_TYPE())
+                .operationNumber(UUID.randomUUID().toString())
+                .build();
+
+        ArrayList<Operation> operations = credit.getOperations() == null ? new ArrayList<>() : credit.getOperations();
+        operations.add(operation);
+
+        credit.setOperations(operations);
+        credit.setId(creditDTO.getId());
+
         return credit;
     }
 }

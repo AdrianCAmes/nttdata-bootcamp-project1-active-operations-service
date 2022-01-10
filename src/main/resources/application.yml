@@ -23,6 +23,9 @@ constants:
   status:
     blocked: Blocked
     active: Active
+  billing_order:
+    paid_status: Paid
+    unpaid_status: Unpaid
   customer:
     personal_type: Personal
     business_type: Business
