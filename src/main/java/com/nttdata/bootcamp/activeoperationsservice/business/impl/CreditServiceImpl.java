@@ -2,12 +2,17 @@ package com.nttdata.bootcamp.activeoperationsservice.business.impl;
 
 import com.nttdata.bootcamp.activeoperationsservice.business.CreditService;
 import com.nttdata.bootcamp.activeoperationsservice.config.Constants;
+import com.nttdata.bootcamp.activeoperationsservice.model.BillingOrder;
 import com.nttdata.bootcamp.activeoperationsservice.model.Credit;
 import com.nttdata.bootcamp.activeoperationsservice.model.Customer;
+import com.nttdata.bootcamp.activeoperationsservice.model.Operation;
 import com.nttdata.bootcamp.activeoperationsservice.model.dto.request.CreditCreateRequestDTO;
 import com.nttdata.bootcamp.activeoperationsservice.model.dto.request.CreditUpdateRequestDTO;
+import com.nttdata.bootcamp.activeoperationsservice.model.dto.request.CreditConsumeCreditRequestDTO;
+import com.nttdata.bootcamp.activeoperationsservice.model.dto.response.CreditFindBalancesResponseDTO;
 import com.nttdata.bootcamp.activeoperationsservice.model.dto.response.CustomerCustomerServiceResponseDTO;
 import com.nttdata.bootcamp.activeoperationsservice.repository.CreditRepository;
+import com.nttdata.bootcamp.activeoperationsservice.utils.BillingOrderUtils;
 import com.nttdata.bootcamp.activeoperationsservice.utils.CreditUtils;
 import com.nttdata.bootcamp.activeoperationsservice.utils.CustomerUtils;
 import com.nttdata.bootcamp.activeoperationsservice.utils.errorhandling.BusinessLogicException;
@@ -20,7 +25,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.NoSuchElementException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +38,7 @@ public class CreditServiceImpl implements CreditService {
     private final Constants constants;
     private final CreditUtils creditUtils;
     private final CustomerUtils customerUtils;
+    private final BillingOrderUtils billingOrderUtils;
 
     @Override
     public Mono<Credit> create(CreditCreateRequestDTO creditDTO) {
@@ -157,8 +164,164 @@ public class CreditServiceImpl implements CreditService {
         return retrievedAccount;
     }
 
-    //region Private Helper Functions
+    @Override
+    public Mono<Credit> consumeCredit(CreditConsumeCreditRequestDTO creditDTO) {
+        log.info("Start to save a new credit consumption for the credit with id: [{}]", creditDTO.getId());
 
+        Mono<Credit> updatedCredit = creditRepository.findById(creditDTO.getId())
+                .flatMap(retrievedCredit -> {
+                    log.info("Validating consumption operation");
+                    return consumptionValidation(creditDTO, retrievedCredit);
+                })
+                .flatMap(validatedCredit -> {
+                    Double amountToUpdate = validatedCredit.getAvailableAmount() - creditDTO.getAmount();
+                    validatedCredit.setAvailableAmount(amountToUpdate);
+
+                    Credit creditToUpdate = creditUtils.fillCreditWithCreditConsumeCreditRequestDTO(validatedCredit, creditDTO);
+
+                    log.info("Doing consumption of [{}] to credit with id [{}]", creditDTO.getAmount(), creditDTO.getId());
+                    log.info("Saving consumption into credit: [{}]", creditDTO.toString());
+                    Mono<Credit> nestedUpdatedCredit = creditRepository.save(creditToUpdate);
+                    log.info("Consumption was successfully saved");
+
+                    return nestedUpdatedCredit;
+                })
+                .switchIfEmpty(Mono.error(new NoSuchElementException("Credit does not exist")));
+
+        log.info("End to save a new account operation for the credit with id: [{}]", creditDTO.getId());
+        return updatedCredit;
+    }
+
+    @Override
+    public Mono<Credit> payCredit(String billingOrderId) {
+        log.info("Start of operation to pay a billing order");
+
+        log.info("Looking for billing order");
+        Mono<Credit> updatedCredit = findAll()
+                .filter(retrievedCredit -> {
+                    if (retrievedCredit.getOperations() != null) {
+                        return retrievedCredit.getOperations()
+                                .stream().
+                                anyMatch(operation -> operation.getBillingOrder() == null ? false :
+                                        operation.getBillingOrder().getStatus().equals(constants.getBILLING_ORDER_UNPAID()) &&
+                                        operation.getBillingOrder().getId().contentEquals(billingOrderId));
+                    } else return false;
+                })
+                .single()
+                .flatMap(retrievedCredit -> {
+                    log.info("Billing order exists in database");
+                    ArrayList<Operation> operations = retrievedCredit.getOperations();
+                    ArrayList<Operation> mappedOperations = new ArrayList<>(operations.stream().map(operation -> {
+                        if (operation.getBillingOrder() != null && operation.getBillingOrder().getId().contentEquals(billingOrderId)) {
+                            log.info("Refunding amount to account");
+                            Double availableAmount = retrievedCredit.getAvailableAmount() + operation.getBillingOrder().getAmountToRefund();
+                            if (availableAmount > retrievedCredit.getFullGrantedAmount()) retrievedCredit.setAvailableAmount(retrievedCredit.getFullGrantedAmount());
+                            else retrievedCredit.setAvailableAmount(availableAmount);
+
+                            log.info("Updating payment operation");
+                            operation.setTime(new Date());
+                            operation.setOperationNumber(UUID.randomUUID().toString());
+                            operation.setAmount(operation.getBillingOrder().getCalculatedAmount());
+
+                            BillingOrder billingOrder = operation.getBillingOrder();
+                            billingOrder.setStatus(constants.getBILLING_ORDER_PAID());
+                            operation.setBillingOrder(billingOrder);
+                            operation.setOperationNumber(UUID.randomUUID().toString());
+                        }
+                        return operation;
+                    }).collect(Collectors.toList()));
+
+                    retrievedCredit.setOperations(mappedOperations);
+                    log.info("Saving payment into credit: [{}]", retrievedCredit.toString());
+                    Mono<Credit> nestedUpdatedCredit =  creditRepository.save(retrievedCredit);
+                    log.info("Payment was successfully saved");
+
+                    return nestedUpdatedCredit;
+                })
+                .switchIfEmpty(Mono.error(new NoSuchElementException("Billing order does not exist")));
+
+        log.info("End of operation to pay a billing order");
+        return updatedCredit;
+    }
+
+    @Override
+    public Mono<Credit> generateBillingOrder(String creditId) {
+        log.info("Start to generate a billing order for the credit with id: [{}]", creditId);
+
+        Mono<Credit> updatedCredit = creditRepository.findById(creditId)
+                .flatMap(retrievedCredit -> {
+                    log.info("Validating credit");
+                    return generateBillingOrderValidation(retrievedCredit);
+                })
+                .flatMap(validatedCredit -> {
+                    BillingOrder billingOrder = new BillingOrder();
+
+                    // Generate random amount to refund
+                    Random randomValue = new Random();
+                    Double randomAmountToRefund = (validatedCredit.getFullGrantedAmount() - validatedCredit.getAvailableAmount()) * randomValue.nextDouble();
+                    Double roundedAmountToRefund = billingOrderUtils.roundDouble(randomAmountToRefund, 2);
+                    billingOrder.setAmountToRefund(roundedAmountToRefund);
+
+                    // Generate amount with interests
+                    Double randomConsumeAmountWithInterests = billingOrderUtils.applyInterests(randomAmountToRefund, validatedCredit.getBillingDetails().getInterestPercentage());
+                    Double roundedConsumeAmountWithInterests = billingOrderUtils.roundDouble(randomConsumeAmountWithInterests, 2);
+                    billingOrder.setCalculatedAmount(roundedConsumeAmountWithInterests);
+
+                    // Set default values for billing order
+                    billingOrder.setStatus(constants.getBILLING_ORDER_UNPAID());
+                    billingOrder.setId(UUID.randomUUID().toString());
+                    billingOrder.setCycle(String.valueOf((new Date().getMonth()) + 1) + "/" + String.valueOf(new Date().getYear() + 1900));
+
+                    Operation operation = Operation.builder()
+                            .type(constants.getOPERATION_PAYMENT_TYPE())
+                            .billingOrder(billingOrder)
+                            .build();
+
+                    ArrayList<Operation> operations = validatedCredit.getOperations() == null ? new ArrayList<>() : validatedCredit.getOperations();
+                    operations.add(operation);
+                    validatedCredit.setOperations(operations);
+
+                    log.info("Generating billing order into credit with id: [{}]", creditId);
+                    Mono<Credit> nestedUpdatedCredit = creditRepository.save(validatedCredit);
+                    log.info("Generation was successful");
+
+                    return nestedUpdatedCredit;
+                })
+                .switchIfEmpty(Mono.error(new NoSuchElementException("Credit does not exist")));
+
+        log.info("End to generate a new billing order for the credit with id: [{}]", creditId);
+        return updatedCredit;
+    }
+
+    @Override
+    public Flux<Operation> findOperationsByCreditId(String id) {
+        log.info("Start of operation to retrieve all operations from credit with id: [{}]", id);
+
+        log.info("Retrieving all operations");
+        Flux<Operation> retrievedOperations = findById(id)
+                .filter(retrievedCredit -> retrievedCredit.getOperations() != null)
+                .flux()
+                .flatMap(retrievedCredit -> Flux.fromIterable(retrievedCredit.getOperations()));
+        log.info("Operations retrieved successfully");
+
+        log.info("End of operation to retrieve operations from credit with id: [{}]", id);
+        return retrievedOperations;
+    }
+
+    @Override
+    public Flux<CreditFindBalancesResponseDTO> findBalancesByCustomerId(String id) {
+        log.info("Start of operation to retrieve credit balances from customer with id: [{}]", id);
+
+        log.info("Retrieving credit balances");
+        Flux<CreditFindBalancesResponseDTO> retrievedBalances = findByCustomerId(id)
+                .map(retrievedCredit -> creditUtils.creditToCreditFindBalancesResponseDTO(retrievedCredit));
+        log.info("Credits retrieved successfully");
+
+        log.info("End of operation to retrieve credit balances from customer with id: [{}]", id);
+        return retrievedBalances;
+    }
+
+    //region Private Helper Functions
     private Mono<CustomerCustomerServiceResponseDTO> creditToCreateValidation(CreditCreateRequestDTO creditForCreate, CustomerCustomerServiceResponseDTO customerFromMicroservice) {
         log.info("Customer exists in database");
 
@@ -219,6 +382,38 @@ public class CreditServiceImpl implements CreditService {
         }
 
         log.info("Credit successfully validated");
+        return Mono.just(creditInDatabase);
+    }
+
+    private Mono<Credit> consumptionValidation(CreditConsumeCreditRequestDTO creditToUpdateOperation, Credit creditInDatabase) {
+        log.info("Credit exists in database");
+
+        if (creditInDatabase.getStatus().contentEquals(constants.getSTATUS_BLOCKED())) {
+            log.warn("Credit have blocked status");
+            log.warn("Proceeding to abort consumption operation");
+            return Mono.error(new ElementBlockedException("The credit have blocked status"));
+        }
+
+        if (creditInDatabase.getAvailableAmount() < creditToUpdateOperation.getAmount()) {
+            log.info("Credit has insufficient funds");
+            log.warn("Proceeding to abort do operation");
+            return Mono.error(new IllegalArgumentException("The credit has insufficient funds"));
+        }
+
+        log.info("Operation successfully validated");
+        return Mono.just(creditInDatabase);
+    }
+
+    Mono<Credit> generateBillingOrderValidation(Credit creditInDatabase) {
+        log.info("Credit exists in database");
+
+        if (creditInDatabase.getAvailableAmount().equals(creditInDatabase.getFullGrantedAmount())) {
+            log.warn("Customer does not have debts for this credit");
+            log.warn("Proceeding to abort billing order generation");
+            return Mono.error(new BusinessLogicException("Customer does not have debts for this credit"));
+        }
+
+        log.info("Operation successfully validated");
         return Mono.just(creditInDatabase);
     }
     //endregion

@@ -2,9 +2,11 @@ package com.nttdata.bootcamp.activeoperationsservice.expose;
 
 import com.nttdata.bootcamp.activeoperationsservice.business.CreditService;
 import com.nttdata.bootcamp.activeoperationsservice.model.Credit;
+import com.nttdata.bootcamp.activeoperationsservice.model.Operation;
 import com.nttdata.bootcamp.activeoperationsservice.model.dto.request.CreditCreateRequestDTO;
 import com.nttdata.bootcamp.activeoperationsservice.model.dto.request.CreditUpdateRequestDTO;
-import com.nttdata.bootcamp.activeoperationsservice.model.dto.response.CustomerCustomerServiceResponseDTO;
+import com.nttdata.bootcamp.activeoperationsservice.model.dto.request.CreditConsumeCreditRequestDTO;
+import com.nttdata.bootcamp.activeoperationsservice.model.dto.response.CreditFindBalancesResponseDTO;
 import com.nttdata.bootcamp.activeoperationsservice.utils.errorhandling.BusinessLogicException;
 import com.nttdata.bootcamp.activeoperationsservice.utils.errorhandling.ElementBlockedException;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +26,10 @@ import java.util.NoSuchElementException;
 public class CreditController {
     private final CreditService creditService;
 
+    //region CRUD Endpoints
     @GetMapping("/credits")
     public Flux<Credit> findAllAccounts(){
-        log.info("Get operation in /credits");
+            log.info("Get operation in /credits");
         return creditService.findAll();
     }
 
@@ -68,12 +71,57 @@ public class CreditController {
                 .flatMap(removedCredit -> Mono.just(ResponseEntity.ok(removedCredit)))
                 .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
     }
+    //endregion
 
-    @GetMapping("/customers-service/{id}")
-    public Mono<ResponseEntity<CustomerCustomerServiceResponseDTO>> findByIdCustomerService(@PathVariable("id") String id) {
-        log.info("Get operation in /customers-service/{}", id);
-        return creditService.findByIdCustomerService(id)
-                .flatMap(retrievedCustomer -> Mono.just(ResponseEntity.ok(retrievedCustomer)))
-                .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
+    //region Additional Repository Endpoints
+    @GetMapping("customers/{id}/credits")
+    public Flux<Credit> findCreditsByCustomerId(@PathVariable("id") String id) {
+        log.info("Get operation in /customers/{}/credits", id);
+        return creditService.findByCustomerId(id);
     }
+    //endregion
+
+    //region UseCases
+    @PostMapping("/credits/operations/consumes")
+    public Mono<ResponseEntity<Credit>> consumeCredit(@RequestBody CreditConsumeCreditRequestDTO operationDTO) {
+        log.info("Post operation in /credits/operation/consumes");
+        return creditService.consumeCredit(operationDTO)
+                .flatMap(createdAccount -> Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(createdAccount)))
+                .onErrorResume(ElementBlockedException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.LOCKED).build()))
+                .onErrorResume(IllegalArgumentException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).build()))
+                .onErrorResume(NoSuchElementException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build()))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).body(null)));
+    }
+
+    @PostMapping("/credits/operations/payments/{id}")
+    public Mono<ResponseEntity<Credit>> payCredit(@PathVariable("id") String id) {
+        log.info("Post operation in /credits/operation/payments");
+        return creditService.payCredit(id)
+                .flatMap(createdAccount -> Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(createdAccount)))
+                .onErrorResume(NoSuchElementException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build()))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).body(null)));
+    }
+
+    @PostMapping("/credits/{id}/generate-billing-order")
+    public Mono<ResponseEntity<Credit>> generateBillingOrder(@PathVariable("id") String creditId) {
+        log.info("Post operation in /credits/operations/payments/generate-billing-order");
+        return creditService.generateBillingOrder(creditId)
+                .flatMap(createdAccount -> Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(createdAccount)))
+                .onErrorResume(BusinessLogicException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()))
+                .onErrorResume(NoSuchElementException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build()))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).body(null)));
+    }
+
+    @GetMapping("/credits/{id}/operations")
+    public Flux<Operation> findOperationsByCreditId(@PathVariable("id") String id) {
+        log.info("Get operation in /credits/{id}/operations", id);
+        return creditService.findOperationsByCreditId(id);
+    }
+
+    @GetMapping("customers/{id}/credits/balance")
+    public Flux<CreditFindBalancesResponseDTO> findBalancesByCustomerId(@PathVariable("id") String id) {
+        log.info("Get operation in /customers/{}/credits/balance", id);
+        return creditService.findBalancesByCustomerId(id);
+    }
+    //endregion
 }

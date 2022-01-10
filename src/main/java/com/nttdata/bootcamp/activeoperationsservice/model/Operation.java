@@ -12,7 +12,7 @@ import java.util.UUID;
 @Builder
 @ToString
 public class Operation {
-    private String operationNumber = UUID.randomUUID().toString();
+    private String operationNumber;
     private Date time;
     private String type;
     private Double amount;

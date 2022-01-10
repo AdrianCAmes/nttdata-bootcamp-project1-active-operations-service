@@ -9,7 +9,9 @@ import lombok.*;
 @Builder
 @ToString
 public class BillingOrder {
-    public Double calculatedAmount;
-    public String cycle;
-    public String status;
+    private String id;
+    private Double calculatedAmount;
+    private Double amountToRefund;
+    private String cycle;
+    private String status;
 }
