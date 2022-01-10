@@ -10,5 +10,5 @@ import lombok.*;
 @ToString
 public class BillingDetails {
     private Double interestPercentage;
-    private Integer closingDate;
+    private Integer closingDay;
 }
