@@ -59,6 +59,7 @@ public class CreditController {
         return creditService.update(creditDTO)
                 .flatMap(createdCredit -> Mono.just(ResponseEntity.ok(createdCredit)))
                 .onErrorResume(ElementBlockedException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.LOCKED).build()))
+                .onErrorResume(BusinessLogicException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()))
                 .onErrorResume(IllegalArgumentException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).build()))
                 .onErrorResume(NoSuchElementException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build()))
                 .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
