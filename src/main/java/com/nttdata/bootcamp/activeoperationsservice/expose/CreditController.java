@@ -2,11 +2,13 @@ package com.nttdata.bootcamp.activeoperationsservice.expose;
 
 import com.nttdata.bootcamp.activeoperationsservice.business.CreditService;
 import com.nttdata.bootcamp.activeoperationsservice.model.Credit;
+import com.nttdata.bootcamp.activeoperationsservice.model.Customer;
 import com.nttdata.bootcamp.activeoperationsservice.model.Operation;
 import com.nttdata.bootcamp.activeoperationsservice.model.dto.request.CreditCreateRequestDTO;
 import com.nttdata.bootcamp.activeoperationsservice.model.dto.request.CreditUpdateRequestDTO;
 import com.nttdata.bootcamp.activeoperationsservice.model.dto.request.CreditConsumeCreditRequestDTO;
 import com.nttdata.bootcamp.activeoperationsservice.model.dto.response.CreditFindBalancesResponseDTO;
+import com.nttdata.bootcamp.activeoperationsservice.model.dto.response.CustomerCustomerServiceResponseDTO;
 import com.nttdata.bootcamp.activeoperationsservice.utils.errorhandling.BusinessLogicException;
 import com.nttdata.bootcamp.activeoperationsservice.utils.errorhandling.ElementBlockedException;
 import lombok.RequiredArgsConstructor;
@@ -79,6 +81,12 @@ public class CreditController {
     public Flux<Credit> findCreditsByCustomerId(@PathVariable("id") String id) {
         log.info("Get operation in /customers/{}/credits", id);
         return creditService.findByCustomerId(id);
+    }
+
+    @GetMapping("customers-service/{id}")
+    public Mono<CustomerCustomerServiceResponseDTO> findByIdCustomerService(@PathVariable("id") String id) {
+        log.info("Get operation in /customers-service/{}", id);
+        return creditService.findByIdCustomerService(id);
     }
     //endregion
 
