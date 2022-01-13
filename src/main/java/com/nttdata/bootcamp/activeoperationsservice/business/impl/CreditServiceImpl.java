@@ -339,7 +339,7 @@ public class CreditServiceImpl implements CreditService {
             return Mono.error(new IllegalArgumentException("Credit does not billing details"));
         }
 
-        if (customerFromMicroservice.getType().contentEquals(constants.getCUSTOMER_PERSONAL_TYPE()))
+        if (customerFromMicroservice.getCustomerType().getGroup().contentEquals(constants.getCUSTOMER_PERSONAL_GROUP()))
         {
             return findByCustomerId(customerFromMicroservice.getId())
                     .filter(retrievedAccount -> retrievedAccount.getStatus().contentEquals(constants.getSTATUS_ACTIVE()))

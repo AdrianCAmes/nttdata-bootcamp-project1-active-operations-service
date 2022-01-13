@@ -13,11 +13,11 @@ public class Constants {
     @Value("${constants.eureka.service_url.gateway_service}")
     private String GATEWAY_SERVICE_URL;
 
-    @Value("${constants.customer.personal_type}")
-    private String CUSTOMER_PERSONAL_TYPE;
+    @Value("${constants.customer.personal_group}")
+    private String CUSTOMER_PERSONAL_GROUP;
 
-    @Value("${constants.customer.business_type}")
-    private String CUSTOMER_BUSINESS_TYPE;
+    @Value("${constants.customer.business_group}")
+    private String CUSTOMER_BUSINESS_GROUP;
 
     @Value("${constants.status.blocked}")
     private String STATUS_BLOCKED;
