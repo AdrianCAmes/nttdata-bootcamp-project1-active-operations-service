@@ -25,6 +25,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -39,7 +40,7 @@ public class CreditServiceImpl implements CreditService {
     private final CreditUtils creditUtils;
     private final CustomerUtils customerUtils;
     private final BillingOrderUtils billingOrderUtils;
-    private Random randomInstance = new Random();
+    private SecureRandom randomInstance = new SecureRandom();
 
     @Override
     public Mono<Credit> create(CreditCreateRequestDTO creditDTO) {
