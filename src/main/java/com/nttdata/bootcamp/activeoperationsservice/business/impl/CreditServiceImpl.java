@@ -25,6 +25,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -39,6 +40,7 @@ public class CreditServiceImpl implements CreditService {
     private final CreditUtils creditUtils;
     private final CustomerUtils customerUtils;
     private final BillingOrderUtils billingOrderUtils;
+    private SecureRandom randomInstance = new SecureRandom();
 
     @Override
     public Mono<Credit> create(CreditCreateRequestDTO creditDTO) {
@@ -260,8 +262,7 @@ public class CreditServiceImpl implements CreditService {
                     BillingOrder billingOrder = new BillingOrder();
 
                     // Generate random amount to refund
-                    Random randomValue = new Random();
-                    Double randomAmountToRefund = (validatedCredit.getFullGrantedAmount() - validatedCredit.getAvailableAmount()) * randomValue.nextDouble();
+                    Double randomAmountToRefund = (validatedCredit.getFullGrantedAmount() - validatedCredit.getAvailableAmount()) * randomInstance.nextDouble();
                     Double roundedAmountToRefund = billingOrderUtils.roundDouble(randomAmountToRefund, 2);
                     billingOrder.setAmountToRefund(roundedAmountToRefund);
 
