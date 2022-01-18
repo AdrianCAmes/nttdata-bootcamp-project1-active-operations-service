@@ -1,9 +1,7 @@
 package com.nttdata.bootcamp.activeoperationsservice.model;
 
 import lombok.*;
-
 import java.util.Date;
-import java.util.UUID;
 
 @Getter
 @Setter

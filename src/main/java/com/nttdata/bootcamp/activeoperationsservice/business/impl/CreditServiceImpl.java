@@ -55,7 +55,7 @@ public class CreditServiceImpl implements CreditService {
                         Customer customer = customerUtils.customerCustomerServiceDTOToCustomer(validatedCustomer);
 
                         creditToCreate.setCustomer(customer);
-                        creditToCreate.setStatus(constants.getSTATUS_ACTIVE());
+                        creditToCreate.setStatus(constants.getStatusActive());
                         creditToCreate.setAvailableAmount(creditToCreate.getFullGrantedAmount());
 
                         log.info("Creating new credit: [{}]", creditToCreate.toString());
@@ -138,10 +138,10 @@ public class CreditServiceImpl implements CreditService {
         log.info("Start of operation to retrieve customer with id [{}] from customer-info-service", id);
 
         log.info("Retrieving customer");
-        String url = constants.getCUSTOMER_INFO_SERVICE_URL() + "/api/v1/customers/" + id;
+        String url = constants.getCustomerInfoServiceUrl() + "/api/v1/customers/" + id;
         Mono<CustomerCustomerServiceResponseDTO> retrievedCustomer = webClientBuilder.build().get()
                 .uri(uriBuilder -> uriBuilder
-                        .host(constants.getGATEWAY_SERVICE_URL())
+                        .host(constants.getGatewayServiceUrl())
                         .path(url)
                         .build())
                 .retrieve()
@@ -203,34 +203,36 @@ public class CreditServiceImpl implements CreditService {
                     if (retrievedCredit.getOperations() != null) {
                         return retrievedCredit.getOperations()
                                 .stream().
-                                anyMatch(operation -> operation.getBillingOrder() == null ? false :
-                                        operation.getBillingOrder().getStatus().equals(constants.getBILLING_ORDER_UNPAID()) &&
+                                anyMatch(operation -> operation.getBillingOrder() != null &&
+                                        operation.getBillingOrder().getStatus().equals(constants.getBillingOrderUnpaid()) &&
                                         operation.getBillingOrder().getId().contentEquals(billingOrderId));
-                    } else return false;
+                    }
+                    return false;
                 })
                 .single()
                 .flatMap(retrievedCredit -> {
                     log.info("Billing order exists in database");
                     ArrayList<Operation> operations = retrievedCredit.getOperations();
-                    ArrayList<Operation> mappedOperations = new ArrayList<>(operations.stream().map(operation -> {
-                        if (operation.getBillingOrder() != null && operation.getBillingOrder().getId().contentEquals(billingOrderId)) {
-                            log.info("Refunding amount to account");
-                            Double availableAmount = retrievedCredit.getAvailableAmount() + operation.getBillingOrder().getAmountToRefund();
-                            if (availableAmount > retrievedCredit.getFullGrantedAmount()) retrievedCredit.setAvailableAmount(retrievedCredit.getFullGrantedAmount());
-                            else retrievedCredit.setAvailableAmount(availableAmount);
+                    ArrayList<Operation> mappedOperations = new ArrayList<>(operations.stream()
+                            .map(operation -> {
+                                if (operation.getBillingOrder() != null && operation.getBillingOrder().getId().contentEquals(billingOrderId)) {
+                                    log.info("Refunding amount to account");
+                                    Double availableAmount = retrievedCredit.getAvailableAmount() + operation.getBillingOrder().getAmountToRefund();
+                                    if (availableAmount > retrievedCredit.getFullGrantedAmount()) retrievedCredit.setAvailableAmount(retrievedCredit.getFullGrantedAmount());
+                                    else retrievedCredit.setAvailableAmount(availableAmount);
 
-                            log.info("Updating payment operation");
-                            operation.setTime(new Date());
-                            operation.setOperationNumber(UUID.randomUUID().toString());
-                            operation.setAmount(operation.getBillingOrder().getCalculatedAmount());
+                                    log.info("Updating payment operation");
+                                    operation.setTime(new Date());
+                                    operation.setOperationNumber(UUID.randomUUID().toString());
+                                    operation.setAmount(operation.getBillingOrder().getCalculatedAmount());
 
-                            BillingOrder billingOrder = operation.getBillingOrder();
-                            billingOrder.setStatus(constants.getBILLING_ORDER_PAID());
-                            operation.setBillingOrder(billingOrder);
-                            operation.setOperationNumber(UUID.randomUUID().toString());
-                        }
-                        return operation;
-                    }).collect(Collectors.toList()));
+                                    BillingOrder billingOrder = operation.getBillingOrder();
+                                    billingOrder.setStatus(constants.getBillingOrderPaid());
+                                    operation.setBillingOrder(billingOrder);
+                                    operation.setOperationNumber(UUID.randomUUID().toString());
+                                }
+                                return operation;
+                            }).collect(Collectors.toList()));
 
                     retrievedCredit.setOperations(mappedOperations);
                     log.info("Saving payment into credit: [{}]", retrievedCredit.toString());
@@ -269,12 +271,12 @@ public class CreditServiceImpl implements CreditService {
                     billingOrder.setCalculatedAmount(roundedConsumeAmountWithInterests);
 
                     // Set default values for billing order
-                    billingOrder.setStatus(constants.getBILLING_ORDER_UNPAID());
+                    billingOrder.setStatus(constants.getBillingOrderUnpaid());
                     billingOrder.setId(UUID.randomUUID().toString());
-                    billingOrder.setCycle(String.valueOf((new Date().getMonth()) + 1) + "/" + String.valueOf(new Date().getYear() + 1900));
+                    billingOrder.setCycle(Calendar.MONTH + "/" + Calendar.YEAR);
 
                     Operation operation = Operation.builder()
-                            .type(constants.getOPERATION_PAYMENT_TYPE())
+                            .type(constants.getOperationPaymentType())
                             .billingOrder(billingOrder)
                             .build();
 
@@ -315,7 +317,7 @@ public class CreditServiceImpl implements CreditService {
 
         log.info("Retrieving credit balances");
         Flux<CreditFindBalancesResponseDTO> retrievedBalances = findByCustomerId(id)
-                .map(retrievedCredit -> creditUtils.creditToCreditFindBalancesResponseDTO(retrievedCredit));
+                .map(creditUtils::creditToCreditFindBalancesResponseDTO);
         log.info("Credits retrieved successfully");
 
         log.info("End of operation to retrieve credit balances from customer with id: [{}]", id);
@@ -326,7 +328,7 @@ public class CreditServiceImpl implements CreditService {
     private Mono<CustomerCustomerServiceResponseDTO> creditToCreateValidation(CreditCreateRequestDTO creditForCreate, CustomerCustomerServiceResponseDTO customerFromMicroservice) {
         log.info("Customer exists in database");
 
-        if (customerFromMicroservice.getStatus().contentEquals(constants.getSTATUS_BLOCKED()))
+        if (customerFromMicroservice.getStatus().contentEquals(constants.getStatusBlocked()))
         {
             log.warn("Customer have blocked status");
             log.warn("Proceeding to abort create credit");
@@ -339,13 +341,13 @@ public class CreditServiceImpl implements CreditService {
             return Mono.error(new IllegalArgumentException("Credit does not billing details"));
         }
 
-        if (customerFromMicroservice.getCustomerType().getGroup().contentEquals(constants.getCUSTOMER_PERSONAL_GROUP()))
+        if (customerFromMicroservice.getCustomerType().getGroup().contentEquals(constants.getCustomerPersonalGroup()))
         {
             return findByCustomerId(customerFromMicroservice.getId())
-                    .filter(retrievedAccount -> retrievedAccount.getStatus().contentEquals(constants.getSTATUS_ACTIVE()))
+                    .filter(retrievedAccount -> retrievedAccount.getStatus().contentEquals(constants.getStatusActive()))
                     .hasElements()
                     .flatMap(haveAnAccount -> {
-                        if (haveAnAccount) {
+                        if (Boolean.TRUE.equals(haveAnAccount)) {
                             log.warn("Can not create more than one credit for a personal customer");
                             log.warn("Proceeding to abort create credit");
                             return Mono.error(new BusinessLogicException("Customer already have one credit"));
@@ -364,7 +366,7 @@ public class CreditServiceImpl implements CreditService {
     private Mono<Credit> creditToUpdateValidation(CreditUpdateRequestDTO creditForUpdate, Credit creditInDatabase) {
         log.info("Credit exists in database");
 
-        if (creditInDatabase.getCustomer().getStatus().contentEquals(constants.getSTATUS_BLOCKED())) {
+        if (creditInDatabase.getCustomer().getStatus().contentEquals(constants.getStatusBlocked())) {
             log.warn("Customer have blocked status");
             log.warn("Proceeding to abort update credit");
             return Mono.error(new ElementBlockedException("The customer have blocked status"));
@@ -389,7 +391,7 @@ public class CreditServiceImpl implements CreditService {
     private Mono<Credit> consumptionValidation(CreditConsumeCreditRequestDTO creditToUpdateOperation, Credit creditInDatabase) {
         log.info("Credit exists in database");
 
-        if (creditInDatabase.getStatus().contentEquals(constants.getSTATUS_BLOCKED())) {
+        if (creditInDatabase.getStatus().contentEquals(constants.getStatusBlocked())) {
             log.warn("Credit have blocked status");
             log.warn("Proceeding to abort consumption operation");
             return Mono.error(new ElementBlockedException("The credit have blocked status"));

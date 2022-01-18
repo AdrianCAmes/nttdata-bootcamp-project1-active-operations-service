@@ -108,7 +108,7 @@ public class CreditUtilsImpl implements CreditUtils {
         Operation operation = Operation.builder()
                 .amount(creditDTO.getAmount())
                 .time(new Date())
-                .type(constants.getOPERATION_CONSUMPTION_TYPE())
+                .type(constants.getOperationConsumptionType())
                 .operationNumber(UUID.randomUUID().toString())
                 .build();
 
