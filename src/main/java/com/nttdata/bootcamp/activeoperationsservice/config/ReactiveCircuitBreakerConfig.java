@@ -2,7 +2,6 @@ package com.nttdata.bootcamp.activeoperationsservice.config;
 
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.circuitbreaker.resilience4j.ReactiveResilience4JCircuitBreakerFactory;
 import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreaker;
 import org.springframework.context.annotation.Bean;
@@ -11,7 +10,6 @@ import org.springframework.context.annotation.Configuration;
 import java.time.Duration;
 
 @RequiredArgsConstructor
-@Slf4j
 @Configuration
 public class ReactiveCircuitBreakerConfig {
     private final Constants constants;
