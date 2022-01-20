@@ -16,9 +16,11 @@ import com.nttdata.bootcamp.activeoperationsservice.utils.BillingOrderUtils;
 import com.nttdata.bootcamp.activeoperationsservice.utils.CreditUtils;
 import com.nttdata.bootcamp.activeoperationsservice.utils.CustomerUtils;
 import com.nttdata.bootcamp.activeoperationsservice.utils.errorhandling.BusinessLogicException;
+import com.nttdata.bootcamp.activeoperationsservice.utils.errorhandling.CircuitBreakerException;
 import com.nttdata.bootcamp.activeoperationsservice.utils.errorhandling.ElementBlockedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreaker;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -40,6 +42,7 @@ public class CreditServiceImpl implements CreditService {
     private final CreditUtils creditUtils;
     private final CustomerUtils customerUtils;
     private final BillingOrderUtils billingOrderUtils;
+    private final ReactiveCircuitBreaker customersServiceReactiveCircuitBreaker;
     private SecureRandom randomInstance = new SecureRandom();
 
     @Override
@@ -141,14 +144,20 @@ public class CreditServiceImpl implements CreditService {
 
         log.info("Retrieving customer");
         String url = constants.getCustomerInfoServiceUrl() + "/api/v1/customers/" + id;
-        Mono<CustomerCustomerServiceResponseDTO> retrievedCustomer = webClientBuilder.build().get()
-                .uri(uriBuilder -> uriBuilder
-                        .host(constants.getGatewayServiceUrl())
-                        .path(url)
-                        .build())
-                .retrieve()
-                .onStatus(httpStatus -> httpStatus == HttpStatus.NOT_FOUND, clientResponse -> Mono.empty())
-                .bodyToMono(CustomerCustomerServiceResponseDTO.class);
+        Mono<CustomerCustomerServiceResponseDTO> retrievedCustomer = customersServiceReactiveCircuitBreaker.run(
+                webClientBuilder.build().get()
+                        .uri(uriBuilder -> uriBuilder
+                                .host(constants.getGatewayServiceUrl())
+                                .path(url)
+                                .build())
+                        .retrieve()
+                        .onStatus(httpStatus -> httpStatus == HttpStatus.NOT_FOUND, clientResponse -> Mono.empty())
+                        .bodyToMono(CustomerCustomerServiceResponseDTO.class),
+                throwable -> {
+                    log.warn("Error in circuit breaker call");
+                    log.warn(throwable.getMessage());
+                    return Mono.error(new CircuitBreakerException("Error in circuit breaker"));
+                });
         log.info("Customer retrieved successfully");
 
         log.info("End of operation to retrieve customer with id: [{}]", id);
