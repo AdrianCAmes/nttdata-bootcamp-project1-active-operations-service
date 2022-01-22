@@ -7,39 +7,39 @@ import org.springframework.stereotype.Component;
 @Component
 @Getter
 public class Constants {
-    @Value("${constants.eureka.service-url.customer-info-service:}")
+    @Value("${constants.eureka.service-url.customer-info-service}")
     private String customerInfoServiceUrl;
 
-    @Value("${constants.eureka.service-url.gateway-service:}")
+    @Value("${constants.eureka.service-url.gateway-service}")
     private String gatewayServiceUrl;
 
-    @Value("${constants.customer.personal-group:}")
+    @Value("${constants.customer.personal-group}")
     private String customerPersonalGroup;
 
-    @Value("${constants.customer.business-group:}")
+    @Value("${constants.customer.business-group}")
     private String customerBusinessGroup;
 
-    @Value("${constants.status.blocked:}")
+    @Value("${constants.status.blocked}")
     private String statusBlocked;
 
-    @Value("${constants.status.active:}")
+    @Value("${constants.status.active}")
     private String statusActive;
 
-    @Value("${constants.operation.consumption-type:}")
+    @Value("${constants.operation.consumption-type}")
     private String operationConsumptionType;
 
-    @Value("${constants.operation.payment-type:}")
+    @Value("${constants.operation.payment-type}")
     private String operationPaymentType;
 
-    @Value("${constants.billing-order.paid-status:}")
+    @Value("${constants.billing-order.paid-status}")
     private String billingOrderPaid;
 
-    @Value("${constants.billing-order.unpaid-status:}")
+    @Value("${constants.billing-order.unpaid-status}")
     private String billingOrderUnpaid;
 
-    @Value("${constants.circuit-breaker.customer-info-service.name:customersDefaultCircuitBreaker}")
+    @Value("${constants.circuit-breaker.customer-info-service.name}")
     private String customersServiceCircuitBreakerName;
 
-    @Value("${constants.circuit-breaker.customer-info-service.timeout:2}")
+    @Value("${constants.circuit-breaker.customer-info-service.timeout}")
     private Integer customersServiceCircuitBreakerTimeout;
 }
