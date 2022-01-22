@@ -76,9 +76,9 @@ jobs:
         uses: steebchen/kubectl@v2.0.0
         with:
           config: ${{ secrets.KUBE_CONFIG_DATA }}
-          command: set image --record deployment/passive-operations-service passive-operations-service=u201711778/passive-operations-service:main
+          command: set image --record deployment/active-operations-service active-operations-service=u201711778/active-operations-service:main
       - name: verify deployment
         uses: steebchen/kubectl@v2.0.0
         with:
           config: ${{ secrets.KUBE_CONFIG_DATA }}
-          command: rollout status deployment/passive-operations-service
+          command: rollout status deployment/active-operations-service
