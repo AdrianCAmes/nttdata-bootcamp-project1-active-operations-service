@@ -26,7 +26,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -213,8 +212,8 @@ public class CreditServiceImpl implements CreditService {
                 .filter(retrievedCredit -> {
                     if (retrievedCredit.getOperations() != null) {
                         return retrievedCredit.getOperations()
-                                .stream().
-                                anyMatch(operation -> operation.getBillingOrder() != null &&
+                                .stream()
+                                .anyMatch(operation -> operation.getBillingOrder() != null &&
                                         operation.getBillingOrder().getStatus().equals(constants.getBillingOrderUnpaid()) &&
                                         operation.getBillingOrder().getId().contentEquals(billingOrderId));
                     }
@@ -417,7 +416,7 @@ public class CreditServiceImpl implements CreditService {
         return Mono.just(creditInDatabase);
     }
 
-    Mono<Credit> generateBillingOrderValidation(Credit creditInDatabase) {
+    private Mono<Credit> generateBillingOrderValidation(Credit creditInDatabase) {
         log.info("Credit exists in database");
 
         if (creditInDatabase.getAvailableAmount().equals(creditInDatabase.getFullGrantedAmount())) {

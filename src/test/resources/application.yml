@@ -1,0 +1,38 @@
+# Server config
+server:
+  port: 80
+
+# Spring config
+spring:
+  cloud:
+    config:
+      enabled: false
+
+# Eureka config
+eureka:
+  client:
+    registerWithEureka: false
+    fetchRegistry: false
+
+# Constants
+constants:
+  circuit-breaker:
+    customer-info-service:
+      name: mockCustomerInfoServiceName
+      timeout: 10
+  status:
+    blocked: mockBlocked
+    active: mockActive
+  billing-order:
+    paid-status: mockPaidStatus
+    unpaid-status: mockUnpaidStatus
+  customer:
+    personal-group: mockPersonalGroup
+    business-group: mockBusinessGroup
+  operation:
+    payment-type: mockPaymentType
+    consumption-type: mockConsumptionType
+  eureka:
+    service-url:
+      gateway-service: localhost
+      customer-info-service: mockCustomerInfoServiceUrl
