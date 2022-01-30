@@ -30,13 +30,13 @@ public class CreditController {
 
     //region CRUD Endpoints
     @GetMapping("/credits")
-    public Flux<Credit> findAllAccounts(){
+    public Flux<Credit> findAllCredits(){
             log.info("Get operation in /credits");
         return creditService.findAll();
     }
 
     @GetMapping("/credits/{id}")
-    public Mono<ResponseEntity<Credit>> findAccountById(@PathVariable("id") String id) {
+    public Mono<ResponseEntity<Credit>> findCreditById(@PathVariable("id") String id) {
         log.info("Get operation in /credits/{}", id);
         return creditService.findById(id)
                 .flatMap(retrievedCredit -> Mono.just(ResponseEntity.ok(retrievedCredit)))
@@ -44,7 +44,7 @@ public class CreditController {
     }
 
     @PostMapping("/credits")
-    public Mono<ResponseEntity<Credit>> createAccount(@RequestBody CreditCreateRequestDTO creditDTO) {
+    public Mono<ResponseEntity<Credit>> createCredit(@RequestBody CreditCreateRequestDTO creditDTO) {
         log.info("Post operation in /credits");
         return creditService.create(creditDTO)
                 .flatMap(createdCredit -> Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(createdCredit)))
@@ -57,7 +57,7 @@ public class CreditController {
     }
 
     @PutMapping("/credits")
-    public Mono<ResponseEntity<Credit>> updateAccount(@RequestBody CreditUpdateRequestDTO creditDTO) {
+    public Mono<ResponseEntity<Credit>> updateCredit(@RequestBody CreditUpdateRequestDTO creditDTO) {
         log.info("Put operation in /credits");
         return creditService.update(creditDTO)
                 .flatMap(createdCredit -> Mono.just(ResponseEntity.ok(createdCredit)))
@@ -69,7 +69,7 @@ public class CreditController {
     }
 
     @DeleteMapping("/credits/{id}")
-    public Mono<ResponseEntity<Credit>> deleteAccount(@PathVariable("id") String id) {
+    public Mono<ResponseEntity<Credit>> deleteCredit(@PathVariable("id") String id) {
         log.info("Delete operation in /credits/{}", id);
         return creditService.removeById(id)
                 .flatMap(removedCredit -> Mono.just(ResponseEntity.ok(removedCredit)))
@@ -98,7 +98,7 @@ public class CreditController {
     public Mono<ResponseEntity<Credit>> consumeCredit(@RequestBody CreditConsumeCreditRequestDTO operationDTO) {
         log.info("Post operation in /credits/operation/consumes");
         return creditService.consumeCredit(operationDTO)
-                .flatMap(createdAccount -> Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(createdAccount)))
+                .flatMap(createdCredit -> Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(createdCredit)))
                 .onErrorResume(ElementBlockedException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.LOCKED).build()))
                 .onErrorResume(IllegalArgumentException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).build()))
                 .onErrorResume(NoSuchElementException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build()))
@@ -109,7 +109,7 @@ public class CreditController {
     public Mono<ResponseEntity<Credit>> payCredit(@PathVariable("id") String id) {
         log.info("Post operation in /credits/operation/payments");
         return creditService.payCredit(id)
-                .flatMap(createdAccount -> Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(createdAccount)))
+                .flatMap(createdCredit -> Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(createdCredit)))
                 .onErrorResume(NoSuchElementException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build()))
                 .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).body(null)));
     }
@@ -118,7 +118,7 @@ public class CreditController {
     public Mono<ResponseEntity<Credit>> generateBillingOrder(@PathVariable("id") String creditId) {
         log.info("Post operation in /credits/operations/payments/generate-billing-order");
         return creditService.generateBillingOrder(creditId)
-                .flatMap(createdAccount -> Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(createdAccount)))
+                .flatMap(createdCredit -> Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(createdCredit)))
                 .onErrorResume(BusinessLogicException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()))
                 .onErrorResume(NoSuchElementException.class, error -> Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build()))
                 .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).body(null)));

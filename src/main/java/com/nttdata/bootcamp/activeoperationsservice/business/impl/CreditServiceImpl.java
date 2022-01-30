@@ -26,7 +26,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -143,13 +142,10 @@ public class CreditServiceImpl implements CreditService {
         log.info("Start of operation to retrieve customer with id [{}] from customer-info-service", id);
 
         log.info("Retrieving customer");
-        String url = constants.getCustomerInfoServiceUrl() + "/api/v1/customers/" + id;
+        String url = constants.getUrlPrefix() + constants.getGatewayServiceUrl() + "/" + constants.getCustomerInfoServiceUrl() + "/api/v1/customers/" + id;
         Mono<CustomerCustomerServiceResponseDTO> retrievedCustomer = customersServiceReactiveCircuitBreaker.run(
                 webClientBuilder.build().get()
-                        .uri(uriBuilder -> uriBuilder
-                                .host(constants.getGatewayServiceUrl())
-                                .path(url)
-                                .build())
+                        .uri(url)
                         .retrieve()
                         .onStatus(httpStatus -> httpStatus == HttpStatus.NOT_FOUND, clientResponse -> Mono.empty())
                         .bodyToMono(CustomerCustomerServiceResponseDTO.class),
@@ -213,8 +209,8 @@ public class CreditServiceImpl implements CreditService {
                 .filter(retrievedCredit -> {
                     if (retrievedCredit.getOperations() != null) {
                         return retrievedCredit.getOperations()
-                                .stream().
-                                anyMatch(operation -> operation.getBillingOrder() != null &&
+                                .stream()
+                                .anyMatch(operation -> operation.getBillingOrder() != null &&
                                         operation.getBillingOrder().getStatus().equals(constants.getBillingOrderUnpaid()) &&
                                         operation.getBillingOrder().getId().contentEquals(billingOrderId));
                     }
@@ -417,7 +413,7 @@ public class CreditServiceImpl implements CreditService {
         return Mono.just(creditInDatabase);
     }
 
-    Mono<Credit> generateBillingOrderValidation(Credit creditInDatabase) {
+    private Mono<Credit> generateBillingOrderValidation(Credit creditInDatabase) {
         log.info("Credit exists in database");
 
         if (creditInDatabase.getAvailableAmount().equals(creditInDatabase.getFullGrantedAmount())) {
