@@ -1,6 +1,6 @@
 # Server config
 server:
-  port: 80
+  port: 2000
 
 # Spring config
 spring:
@@ -34,5 +34,5 @@ constants:
     consumption-type: mockConsumptionType
   eureka:
     service-url:
-      gateway-service: localhost
+      gateway-service: localhost:${server.port}
       customer-info-service: mockCustomerInfoServiceUrl
