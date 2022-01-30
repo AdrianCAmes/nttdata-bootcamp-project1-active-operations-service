@@ -142,7 +142,7 @@ public class CreditServiceImpl implements CreditService {
         log.info("Start of operation to retrieve customer with id [{}] from customer-info-service", id);
 
         log.info("Retrieving customer");
-        String url = constants.getGatewayServiceUrl() + "/" + constants.getCustomerInfoServiceUrl() + "/api/v1/customers/" + id;
+        String url = constants.getUrlPrefix() + constants.getGatewayServiceUrl() + "/" + constants.getCustomerInfoServiceUrl() + "/api/v1/customers/" + id;
         Mono<CustomerCustomerServiceResponseDTO> retrievedCustomer = customersServiceReactiveCircuitBreaker.run(
                 webClientBuilder.build().get()
                         .uri(url)

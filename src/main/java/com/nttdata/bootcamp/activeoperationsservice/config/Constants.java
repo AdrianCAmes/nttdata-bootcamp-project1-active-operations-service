@@ -13,6 +13,9 @@ public class Constants {
     @Value("${constants.eureka.service-url.gateway-service}")
     private String gatewayServiceUrl;
 
+    @Value("${constants.eureka.service-url.prefix}")
+    private String urlPrefix;
+
     @Value("${constants.customer.personal-group}")
     private String customerPersonalGroup;
 

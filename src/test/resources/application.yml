@@ -34,5 +34,6 @@ constants:
     consumption-type: mockConsumptionType
   eureka:
     service-url:
+      prefix:
       gateway-service: localhost:${server.port}
       customer-info-service: mockCustomerInfoServiceUrl
