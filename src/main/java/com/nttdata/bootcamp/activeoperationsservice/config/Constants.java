@@ -45,4 +45,6 @@ public class Constants {
 
     @Value("${constants.circuit-breaker.customer-info-service.timeout}")
     private Integer customersServiceCircuitBreakerTimeout;
-}
+
+    @Value("${constants.kafka.topic}")
+    private String kafkaTopic;}

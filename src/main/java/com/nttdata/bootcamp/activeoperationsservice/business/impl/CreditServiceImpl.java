@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.client.circuitbreaker.ReactiveCircuitBreaker;
 import org.springframework.http.HttpStatus;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -42,6 +43,7 @@ public class CreditServiceImpl implements CreditService {
     private final CustomerUtils customerUtils;
     private final BillingOrderUtils billingOrderUtils;
     private final ReactiveCircuitBreaker customersServiceReactiveCircuitBreaker;
+    private final KafkaTemplate<String, String> kafkaTemplate;
     private SecureRandom randomInstance = new SecureRandom();
 
     @Override
@@ -63,7 +65,9 @@ public class CreditServiceImpl implements CreditService {
                         creditToCreate.setAvailableAmount(creditToCreate.getFullGrantedAmount());
 
                         log.info("Creating new credit: [{}]", creditToCreate.toString());
-                        return creditRepository.insert(creditToCreate);
+                        Mono<Credit> nestedCreatedCredit = creditRepository.insert(creditToCreate);
+                        kafkaTemplate.send(constants.getKafkaTopic(), creditToCreate.toString());
+                        return nestedCreatedCredit;
                     })
                     .switchIfEmpty(Mono.error(new NoSuchElementException("Customer does not exist")));
 
